@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Bug Tracking – Fixed & QA</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    h1 { text-align: center; background: #007acc; color: white; padding: 1em; margin: 0; }
+    #container { display: flex; }
+    #main { flex: 1; padding: 1em; }
+    #sidebar {
+      width: 300px; background: #f2f2f2; border-left: 1px solid #ccc; padding: 1em;
+      box-sizing: border-box;
+    }
+    .tab-buttons button {
+      padding: 0.5em 1em; margin-right: 5px;
+      border: none; background: #007acc; color: white; cursor: pointer;
+    }
+    .tab-buttons button.active { background: #005999; }
+    .form-group { margin-bottom: 1em; }
+    label { display: block; margin-bottom: 0.3em; }
+    input[type="text"], input[type="date"] {
+      width: 100%; padding: 0.4em; box-sizing: border-box;
+    }
+    textarea { 
+      width: 100%; 
+      padding: 0.4em; 
+      box-sizing: border-box; 
+      height: 200px;      /* Tăng chiều cao textbox QA */
+      overflow-y: auto;   /* Thêm thanh cuộn theo chiều dọc nếu nội dung quá dài */
+    }
+    button { padding: 0.5em 1em; margin-right: 5px; cursor: pointer; }
+    /* Popup modal */
+    #modal {
+      display: none; position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+      justify-content: center; align-items: center;
+    }
+    #modalContent {
+      background: #fff; 
+      padding: 1em; 
+      width: 90%; 
+      max-width: 600px;
+      max-height: 80vh; /* Giới hạn chiều cao tối đa */
+      overflow-y: auto; /* Thêm thanh cuộn dọc nếu popup quá cao */
+      border-radius: 4px; 
+      white-space: pre-wrap;
+    }
+    #ticketList { margin-top: 1em; }
+    .ticket-item {
+      background: #e0e0e0; padding: 0.5em; margin-bottom: 0.5em;
+      cursor: pointer; display: flex; justify-content: space-between;
+      align-items: center;
+    }
+    .ticket-item span { flex: 1; }
+    .ticket-item button {
+      background: #cc0000; border: none; padding: 0.3em 0.6em; color: #fff;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Bug Tracking – Fixed & QA</h1>
+  <div id="container">
+    <!-- Main content: Form nhập dữ liệu -->
+    <div id="main">
+      <div class="tab-buttons">
+        <button id="btnFixed" class="active">Fixed</button>
+        <button id="btnQA">QA</button>
+      </div>
+      
+      <!-- Form cho Fixed -->
+      <div id="fixedForm">
+        <div class="form-group">
+          <label for="fixedTicket">Mã ticket</label>
+          <input type="text" id="fixedTicket">
+        </div>
+        <div class="form-group">
+          <label for="fixedEvidenceFile">Tên file evidence</label>
+          <input type="text" id="fixedEvidenceFile">
+        </div>
+        <div class="form-group">
+          <label for="fixedEvidenceSheet">Tên Sheet file evidence</label>
+          <input type="text" id="fixedEvidenceSheet">
+        </div>
+        <div class="form-group">
+          <label for="fixedCommitFE">Revision commit FE</label>
+          <input type="text" id="fixedCommitFE">
+        </div>
+        <div class="form-group">
+          <label for="fixedCommitBE">Revision commit BE</label>
+          <input type="text" id="fixedCommitBE">
+        </div>
+        <button id="saveFixedBtn">Lưu thông tin</button>
+        <button id="clearFixedBtn">Clear</button>
+      </div>
+      
+      <!-- Form cho QA (ẩn mặc định) -->
+      <div id="qaForm" style="display: none;">
+        <div class="form-group">
+          <label for="qaTicket">Mã ticket</label>
+          <input type="text" id="qaTicket">
+        </div>
+        <div class="form-group">
+          <label for="qaLink">Link ticket</label>
+          <input type="text" id="qaLink">
+        </div>
+        <div class="form-group">
+          <label for="qaContent">QA</label>
+          <textarea id="qaContent"></textarea>
+        </div>
+        <button id="saveQABtn">Lưu thông tin</button>
+        <button id="clearQABtn">Clear</button>
+      </div>
+    </div>
+
+    <!-- Sidebar: Bộ chọn ngày, danh sách ticket & các nút xuất báo cáo -->
+    <div id="sidebar">
+      <h3>Danh sách ticket</h3>
+      <div class="form-group">
+        <label for="filterDate">Chọn ngày:</label>
+        <input type="date" id="filterDate">
+      </div>
+      <div id="ticketList"></div>
+      <button id="exportReportBtn" style="margin-top:1em;">Xuất Report</button>
+      <button id="exportCSVBtn" style="margin-top:1em;">Xuất CSV (Database)</button>
+    </div>
+  </div>
+  
+  <!-- Popup modal -->
+  <div id="modal">
+    <div id="modalContent">
+      <div id="modalText"></div>
+      <button id="closeModalBtn" style="margin-top:1em;">Đóng</button>
+    </div>
+  </div>
+
+  <script>
+    // Global Variables
+    let currentMode = "fixed"; // "fixed" hoặc "qa"
+    let editRecordId = null;   // Nếu đang edit thì lưu id record
+    let records = [];          // Danh sách record
+
+    // Khởi tạo ngày mặc định là hôm nay ở sidebar
+    const filterDateElem = document.getElementById("filterDate");
+    const todayStr = new Date().toISOString().split("T")[0];
+    filterDateElem.value = todayStr;
+
+    // Các tham chiếu DOM
+    const fixedForm = document.getElementById("fixedForm");
+    const qaForm = document.getElementById("qaForm");
+    const btnFixed = document.getElementById("btnFixed");
+    const btnQA = document.getElementById("btnQA");
+    const modal = document.getElementById("modal");
+    const modalText = document.getElementById("modalText");
+    const ticketList = document.getElementById("ticketList");
+
+    // Chuyển đổi giữa các form
+    function switchMode(mode) {
+      currentMode = mode;
+      if(mode === "fixed"){
+        fixedForm.style.display = "block";
+        qaForm.style.display = "none";
+        btnFixed.classList.add("active");
+        btnQA.classList.remove("active");
+      } else {
+        fixedForm.style.display = "none";
+        qaForm.style.display = "block";
+        btnQA.classList.add("active");
+        btnFixed.classList.remove("active");
+      }
+      clearForm();
+    }
+    btnFixed.addEventListener("click", () => switchMode("fixed"));
+    btnQA.addEventListener("click", () => switchMode("qa"));
+
+    // Hiển thị popup modal
+    function showModal(text) {
+      modalText.textContent = text;
+      modal.style.display = "flex";
+    }
+    document.getElementById("closeModalBtn").addEventListener("click", () => {
+      modal.style.display = "none";
+    });
+
+    // Lưu dữ liệu vào localStorage
+    function saveToStorage() {
+      localStorage.setItem("records", JSON.stringify(records));
+    }
+    function loadFromStorage(){
+      const data = localStorage.getItem("records");
+      if(data){
+        records = JSON.parse(data);
+      }
+    }
+    loadFromStorage();
+
+    // Hàm định dạng ngày theo yyyy/MM/dd
+    function formatDate(date) {
+      const d = new Date(date);
+      const yyyy = d.getFullYear();
+      const mm = ("0" + (d.getMonth() + 1)).slice(-2);
+      const dd = ("0" + d.getDate()).slice(-2);
+      return `${yyyy}/${mm}/${dd}`;
+    }
+
+    // Hàm clear form theo chế độ hiện tại
+    function clearForm() {
+      editRecordId = null;
+      if(currentMode === "fixed"){
+        document.getElementById("fixedTicket").value = "";
+        document.getElementById("fixedEvidenceFile").value = "";
+        document.getElementById("fixedEvidenceSheet").value = "";
+        document.getElementById("fixedCommitFE").value = "";
+        document.getElementById("fixedCommitBE").value = "";
+      } else {
+        document.getElementById("qaTicket").value = "";
+        document.getElementById("qaLink").value = "";
+        document.getElementById("qaContent").value = "";
+      }
+    }
+    document.getElementById("clearFixedBtn").addEventListener("click", clearForm);
+    document.getElementById("clearQABtn").addEventListener("click", clearForm);
+
+    // Lưu record theo mode Fixed hoặc QA
+    function saveRecord() {
+      let record = {};
+      const now = new Date();
+      const dateStr = formatDate(now);
+      if(currentMode === "fixed"){
+        const ticket = document.getElementById("fixedTicket").value.trim();
+        if(!ticket) { alert("Mã ticket không được để trống!"); return; }
+        record = {
+          id: editRecordId || Date.now(),
+          type: "fixed",
+          ticket,
+          date: dateStr,
+          evidenceFile: document.getElementById("fixedEvidenceFile").value.trim(),
+          evidenceSheet: document.getElementById("fixedEvidenceSheet").value.trim(),
+          revisionFE: document.getElementById("fixedCommitFE").value.trim(),
+          revisionBE: document.getElementById("fixedCommitBE").value.trim()
+        };
+
+        let output = `${record.date} [SYSEXE_VN]\n`
+                   + `■  原因調査：ロジックが設計書に沿って正しく実装されていない。\n`
+                   + `■  対応方法：設計書に沿って機能を実装致しました。\n`
+                   + `■ エビデンス：\n`
+                   + `   ・ファイル： ${record.evidenceFile}\n`
+                   + `   ・シート： ${record.evidenceSheet}\n`
+                   + `■ ソースコード修正：\n`
+                   + `   ・フロントエンド： ${record.revisionFE ? record.revisionFE : "修正なし"}\n`
+                   + `   ・バックエンド： ${record.revisionBE ? record.revisionBE : "修正なし"}`;
+        showModal(output);
+      } else {
+        const ticket = document.getElementById("qaTicket").value.trim();
+        if(!ticket) { alert("Mã ticket không được để trống!"); return; }
+        const qaContent = document.getElementById("qaContent").value.trim();
+        record = {
+          id: editRecordId || Date.now(),
+          type: "qa",
+          ticket,
+          date: dateStr,
+          link: document.getElementById("qaLink").value.trim(),
+          qaContent: qaContent,
+          qaFilename: `QA_${ticket}_${Date.now()}.txt`
+        };
+
+        let output = `${record.ticket}\n\nEm gửi QA\n\n`
+                   + `Link ticket: ${record.link}\n\n`
+                   + `Nội dung QA: ${record.qaContent}\n\n`
+                   + `(QA được lưu vào file: ${record.qaFilename})`;
+        showModal(output);
+      }
+
+      const idx = records.findIndex(r => r.id === record.id);
+      if(idx >= 0) {
+        records[idx] = record;
+      } else {
+        records.push(record);
+      }
+      saveToStorage();
+      updateTicketList();
+      clearForm();
+    }
+    document.getElementById("saveFixedBtn").addEventListener("click", saveRecord);
+    document.getElementById("saveQABtn").addEventListener("click", saveRecord);
+
+    // Cập nhật danh sách ticket theo ngày đã chọn
+    function updateTicketList() {
+      const selectedDate = formatDate(filterDateElem.value);
+      ticketList.innerHTML = "";
+      const list = records.filter(r => r.date === selectedDate);
+      if(list.length === 0){
+        ticketList.innerHTML = "<p>Không có ticket nào trong ngày này</p>";
+      } else {
+        list.forEach(r => {
+          const div = document.createElement("div");
+          div.className = "ticket-item";
+          div.innerHTML = `<span>GCSAP-${r.ticket} (${r.type})</span>`;
+          div.addEventListener("click", () => loadRecord(r.id));
+          const btnDel = document.createElement("button");
+          btnDel.textContent = "Xóa";
+          btnDel.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if(confirm("Bạn có chắc muốn xóa ticket này?")){
+              deleteRecord(r.id);
+            }
+          });
+          div.appendChild(btnDel);
+          ticketList.appendChild(div);
+        });
+      }
+    }
+    filterDateElem.addEventListener("change", updateTicketList);
+    updateTicketList();
+
+    // Load record để chỉnh sửa
+    function loadRecord(id) {
+      const record = records.find(r => r.id === id);
+      if(!record) return;
+      editRecordId = id;
+      if(record.type === "fixed"){
+        switchMode("fixed");
+        document.getElementById("fixedTicket").value = record.ticket;
+        document.getElementById("fixedEvidenceFile").value = record.evidenceFile;
+        document.getElementById("fixedEvidenceSheet").value = record.evidenceSheet;
+        document.getElementById("fixedCommitFE").value = record.revisionFE;
+        document.getElementById("fixedCommitBE").value = record.revisionBE;
+      } else {
+        switchMode("qa");
+        document.getElementById("qaTicket").value = record.ticket;
+        document.getElementById("qaLink").value = record.link;
+        document.getElementById("qaContent").value = record.qaContent;
+      }
+    }
+
+    // Xóa record
+    function deleteRecord(id){
+      records = records.filter(r => r.id !== id);
+      saveToStorage();
+      updateTicketList();
+      clearForm();
+    }
+
+    // Xuất Report theo ngày
+    document.getElementById("exportReportBtn").addEventListener("click", () => {
+      const selectedDate = formatDate(filterDateElem.value);
+      const fixedItems = records.filter(r => r.date === selectedDate && r.type === "fixed");
+      const qaItems = records.filter(r => r.date === selectedDate && r.type === "qa");
+      
+      let report = `Báo cáo công việc ngày ${selectedDate}\n\n`
+                 + `■ Task đang thực hiện:\n`;
+      if(fixedItems.length > 0){
+        report += `- Fixed:\n`;
+        fixedItems.forEach(r => {
+          report += `   • GCSAP-${r.ticket}\n`;
+        });
+      }
+      if(qaItems.length > 0){
+        report += `- QA:\n`;
+        qaItems.forEach(r => {
+          report += `   • GCSAP-${r.ticket}\n`;
+        });
+      }
+      report += `\n■ Task tiếp theo sẽ làm:\n- Fix bug CAT\n\n■ Khó khăn:\n`;
+      showModal(report);
+    });
+
+    // Xuất CSV: nếu hỗ trợ File System Access API thì ghi trực tiếp, nếu không thì download
+    document.getElementById("exportCSVBtn").addEventListener("click", async () => {
+      let csvContent = "Type,Date,Ticket,EvidenceFile,EvidenceSheet,RevisionFE,RevisionBE,Link,QAFilename\n";
+      records.forEach(r => {
+        if(r.type === "fixed"){
+          csvContent += `"${r.type}","${r.date}","${r.ticket}","${r.evidenceFile}","${r.evidenceSheet}","${r.revisionFE ? r.revisionFE : "修正なし"}","${r.revisionBE ? r.revisionBE : "修正なし"}",,""\n`;
+        } else {
+          csvContent += `"${r.type}","${r.date}","${r.ticket}",,,,,"${r.link}","${r.qaFilename}"\n`;
+        }
+      });
+
+      if ("showSaveFilePicker" in window) {
+        try {
+          const opts = {
+            types: [{
+              description: "CSV Files",
+              accept: { "text/csv": [".csv"] },
+            }],
+          };
+          const handle = await window.showSaveFilePicker(opts);
+          const writable = await handle.createWritable();
+          await writable.write(csvContent);
+          await writable.close();
+          alert("Lưu file CSV thành công!");
+        } catch (error) {
+          alert("Lỗi hoặc người dùng hủy lưu file: " + error);
+        }
+      } else {
+        var encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
+        var link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "records.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    });
+  </script>
+</body>
+</html>
