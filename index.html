@@ -1,345 +1,408 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Trang web làm đề thi</title>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-      body {
-        font-family: sans-serif;
-        margin: 0;
-      }
-
-      .container {
-        padding: 20px;
-      }
-
-      h1 {
-        text-align: center;
-        margin-bottom: 20px;
-      }
-
-      .question-nav-container {
-        width: 100%;
-        overflow-x: auto;
-        margin-bottom: 20px;
-      }
-
-      .question-nav {
-        display: flex;
-        margin-bottom: 0;
-      }
-
-      .question-nav li {
-        list-style: none;
-        margin: 5px;
-        width: 40px;
-        height: 40px;
-        border: 2px solid #ccc;
-        border-radius: 5px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        cursor: pointer;
-        font-weight: bold;
-        background-color: gold; /* Chưa trả lời */
-      }
-
-      .question-nav li.active {
-        background-color: lightblue;
-      }
-
-      .question-nav li.correct {
-        background-color: #c8e6c9; /* Đúng */
-        border-color: #c8e6c9;
-      }
-
-      .question-nav li.incorrect {
-        background-color: #ffcdd2; /* Sai */
-        border-color: #ffcdd2;
-      }
-
-      .question-container {
-        border: 1px solid #ccc;
-        padding: 20px;
-        margin-bottom: 20px;
-      }
-
-      .question {
-        font-weight: bold;
-        margin-bottom: 10px;
-      }
-
-      .options label {
-        display: block;
-        margin-bottom: 5px;
-      }
-
-      .options input[type="radio"] {
-        margin-right: 5px;
-      }
-
-      .feedback {
-        margin-top: 10px;
-        font-weight: bold;
-      }
-
-      .correct {
-        color: green;
-      }
-
-      .incorrect {
-        color: red;
-      }
-
-      button {
-        padding: 10px 20px;
-        background-color: #4caf50;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        margin-right: 10px;
-      }
-
-      button:disabled {
-        opacity: 0.5;
-        cursor: default;
-      }
-
-      .button-container {
-        display: flex;
-        justify-content: center;
-      }
-
-      #score {
-        margin-top: 20px;
-        font-weight: bold;
-        text-align: center;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1>Đề thi</h1>
-
-      <div class="question-nav-container">
-        <ul class="question-nav"></ul>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Bug Tracking – Fixed & QA</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    h1 { text-align: center; background: #007acc; color: white; padding: 1em; margin: 0; }
+    #container { display: flex; }
+    #main { flex: 1; padding: 1em; }
+    #sidebar {
+      width: 300px; background: #f2f2f2; border-left: 1px solid #ccc; padding: 1em;
+      box-sizing: border-box;
+    }
+    .tab-buttons button {
+      padding: 0.5em 1em; margin-right: 5px;
+      border: none; background: #007acc; color: white; cursor: pointer;
+    }
+    .tab-buttons button.active { background: #005999; }
+    .form-group { margin-bottom: 1em; }
+    label { display: block; margin-bottom: 0.3em; }
+    input[type="text"], input[type="date"] {
+      width: 100%; padding: 0.4em; box-sizing: border-box;
+    }
+    textarea { 
+      width: 100%; 
+      padding: 0.4em; 
+      box-sizing: border-box; 
+      height: 200px;      /* Tăng chiều cao textbox QA */
+      overflow-y: auto;   /* Thêm thanh cuộn theo chiều dọc nếu nội dung quá dài */
+    }
+    button { padding: 0.5em 1em; margin-right: 5px; cursor: pointer; }
+    /* Popup modal */
+    #modal {
+      display: none; position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+      justify-content: center; align-items: center;
+    }
+    #modalContent {
+      background: #fff; 
+      padding: 1em; 
+      width: 90%; 
+      max-width: 600px;
+      max-height: 80vh; /* Giới hạn chiều cao tối đa */
+      overflow-y: auto; /* Thêm thanh cuộn dọc nếu popup quá cao */
+      border-radius: 4px; 
+      white-space: pre-wrap;
+    }
+    #ticketList { margin-top: 1em; }
+    .ticket-item {
+      background: #e0e0e0; padding: 0.5em; margin-bottom: 0.5em;
+      cursor: pointer; display: flex; justify-content: space-between;
+      align-items: center;
+    }
+    .ticket-item span { flex: 1; }
+    .ticket-item button {
+      background: #cc0000; border: none; padding: 0.3em 0.6em; color: #fff;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Bug Tracking – Fixed & QA</h1>
+  <div id="container">
+    <!-- Main content: Form nhập dữ liệu -->
+    <div id="main">
+      <div class="tab-buttons">
+        <button id="btnFixed" class="active">Fixed</button>
+        <button id="btnQA">QA</button>
       </div>
-
-      <div class="question-container">
-        <div class="question"></div>
-        <div class="options"></div>
+      
+      <!-- Form cho Fixed -->
+      <div id="fixedForm">
+        <div class="form-group">
+          <label for="fixedTicket">Mã ticket</label>
+          <input type="text" id="fixedTicket">
+        </div>
+        <div class="form-group">
+          <label for="fixedEvidenceFile">Tên file evidence</label>
+          <input type="text" id="fixedEvidenceFile">
+        </div>
+        <div class="form-group">
+          <label for="fixedEvidenceSheet">Tên Sheet file evidence</label>
+          <input type="text" id="fixedEvidenceSheet">
+        </div>
+        <div class="form-group">
+          <label for="fixedCommitFE">Revision commit FE</label>
+          <input type="text" id="fixedCommitFE">
+        </div>
+        <div class="form-group">
+          <label for="fixedCommitBE">Revision commit BE</label>
+          <input type="text" id="fixedCommitBE">
+        </div>
+        <button id="saveFixedBtn">Lưu thông tin</button>
+        <button id="clearFixedBtn">Clear</button>
       </div>
-
-      <div class="button-container">
-        <button onclick="previousQuestion()" disabled>Câu trước đó</button>
-        <button onclick="nextQuestion()" disabled>Câu kế tiếp</button>
-        <button onclick="calculateScore()">Tính điểm</button>
-        <button onclick="resetQuiz()">Làm lại</button>
+      
+      <!-- Form cho QA (ẩn mặc định) -->
+      <div id="qaForm" style="display: none;">
+        <div class="form-group">
+          <label for="qaTicket">Mã ticket</label>
+          <input type="text" id="qaTicket">
+        </div>
+        <div class="form-group">
+          <label for="qaLink">Link ticket</label>
+          <input type="text" id="qaLink">
+        </div>
+        <div class="form-group">
+          <label for="qaContent">QA</label>
+          <textarea id="qaContent"></textarea>
+        </div>
+        <button id="saveQABtn">Lưu thông tin</button>
+        <button id="clearQABtn">Clear</button>
       </div>
-
-      <div id="score"></div>
     </div>
 
-    <script>
-      const questionsData = [
-        {
-          question:
-            "Hành vi bị nghiêm cấm khi sử dụng máy, thiết bị, vật tư có yêu cầu nghiêm ngặt về ATVSLĐ:",
-          options: [
-            "Chưa được kiểm định",
-            "Không có nguồn gốc, xuất xứ rõ ràng",
-            "Hết hạn kiểm định",
-            "Tất cả các hành vi trên",
-          ],
-          correctAnswerIndex: 3,
-        },
-        {
-          question: "Các hành vi nào sau đây bị nghiêm cấm:",
-          options: [
-            "Không thực hiện các yêu cầu, biện pháp bảo đảm an toàn, vệ sinh lao động gây tổn hại hoặc có nguy cơ gây tổn hại đến người, tài sản, môi trường",
-            "Buộc người lao động phải làm việc hoặc không được rời khỏi nơi làm việc khi có nguy cơ xảy ra tai nạn lao động đe dọa nghiêm trọng sức khỏe, tính mạng của họ hoặc buộc người lao động tiếp tục làm việc khi các nguy cơ đó chưa được khắc phục",
-            "Trả tiền thay cho việc bồi dưỡng bằng hiện vật",
-            "Tất cả các hành vi nêu trên",
-          ],
-          correctAnswerIndex: 3,
-        },
-        {
-          question: "Các hành vi nào sau đây bị nghiêm cấm:",
-          options: [
-            "Sử dụng máy, thiết bị, vật tư có yêu cầu nghiêm ngặt về an toàn, vệ sinh lao động không được kiểm định hoặc kết quả kiểm định không đạt yêu cầu hoặc không có nguồn gốc, xuất xứ rõ ràng, hết hạn sử dụng, không bảo đảm chất lượng, gây ô nhiễm môi trường",
-            "Trốn đóng, chậm đóng tiền bảo hiểm tai nạn lao động, bệnh nghề nghiệp; chiếm dụng tiền đóng, hưởng bảo hiểm tai nạn lao động, bệnh nghề nghiệp; gian lận, giả mạo hồ sơ trong việc thực hiện bảo hiểm tai nạn lao động, bệnh nghề nghiệp",
-            "Không chi trả chế độ bảo hiểm tai nạn lao động, bệnh nghề nghiệp cho người lao động; quản lý, sử dụng Quỹ bảo hiểm tai nạn lao động, bệnh nghề nghiệp không đúng quy định của pháp luật; truy cập, khai thác trái pháp luật cơ sở dữ liệu về bảo hiểm tai nạn lao động, bệnh nghề nghiệp",
-            "Tất cả các hành vi nêu trên",
-          ],
-          correctAnswerIndex: 3,
-        },
-      ];
+    <!-- Sidebar: Bộ chọn ngày, danh sách ticket & các nút xuất báo cáo -->
+    <div id="sidebar">
+      <h3>Danh sách ticket</h3>
+      <div class="form-group">
+        <label for="filterDate">Chọn ngày:</label>
+        <input type="date" id="filterDate">
+      </div>
+      <div id="ticketList"></div>
+      <button id="exportReportBtn" style="margin-top:1em;">Xuất Report</button>
+      <button id="exportCSVBtn" style="margin-top:1em;">Xuất CSV (Database)</button>
+    </div>
+  </div>
+  
+  <!-- Popup modal -->
+  <div id="modal">
+    <div id="modalContent">
+      <div id="modalText"></div>
+      <button id="closeModalBtn" style="margin-top:1em;">Đóng</button>
+    </div>
+  </div>
 
-      let shuffledQuestions = shuffleArray([...questionsData]);
-      let currentQuestionIndex = 0;
-      let chosenAnswers = {};
+  <script>
+    // Global Variables
+    let currentMode = "fixed"; // "fixed" hoặc "qa"
+    let editRecordId = null;   // Nếu đang edit thì lưu id record
+    let records = [];          // Danh sách record
 
-      const questionContainer = document.querySelector(".question-container");
-      const questionElement = document.querySelector(".question");
-      const optionsElement = document.querySelector(".options");
-      const questionNav = document.querySelector(".question-nav");
-      const previousButton = document.querySelector("button:nth-of-type(1)");
-      const nextButton = document.querySelector("button:nth-of-type(2)");
-      const scoreContainer = document.getElementById("score");
+    // Khởi tạo ngày mặc định là hôm nay ở sidebar
+    const filterDateElem = document.getElementById("filterDate");
+    const todayStr = new Date().toISOString().split("T")[0];
+    filterDateElem.value = todayStr;
 
-      function shuffleArray(array) {
-        for (let i = array.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [array[i], array[j]] = [array[j], array[i]];
-        }
-        return array;
+    // Các tham chiếu DOM
+    const fixedForm = document.getElementById("fixedForm");
+    const qaForm = document.getElementById("qaForm");
+    const btnFixed = document.getElementById("btnFixed");
+    const btnQA = document.getElementById("btnQA");
+    const modal = document.getElementById("modal");
+    const modalText = document.getElementById("modalText");
+    const ticketList = document.getElementById("ticketList");
+
+    // Chuyển đổi giữa các form
+    function switchMode(mode) {
+      currentMode = mode;
+      if(mode === "fixed"){
+        fixedForm.style.display = "block";
+        qaForm.style.display = "none";
+        btnFixed.classList.add("active");
+        btnQA.classList.remove("active");
+      } else {
+        fixedForm.style.display = "none";
+        qaForm.style.display = "block";
+        btnQA.classList.add("active");
+        btnFixed.classList.remove("active");
+      }
+      clearForm();
+    }
+    btnFixed.addEventListener("click", () => switchMode("fixed"));
+    btnQA.addEventListener("click", () => switchMode("qa"));
+
+    // Hiển thị popup modal
+    function showModal(text) {
+      modalText.textContent = text;
+      modal.style.display = "flex";
+    }
+    document.getElementById("closeModalBtn").addEventListener("click", () => {
+      modal.style.display = "none";
+    });
+
+    // Lưu dữ liệu vào localStorage
+    function saveToStorage() {
+      localStorage.setItem("records", JSON.stringify(records));
+    }
+    function loadFromStorage(){
+      const data = localStorage.getItem("records");
+      if(data){
+        records = JSON.parse(data);
+      }
+    }
+    loadFromStorage();
+
+    // Hàm định dạng ngày theo yyyy/MM/dd
+    function formatDate(date) {
+      const d = new Date(date);
+      const yyyy = d.getFullYear();
+      const mm = ("0" + (d.getMonth() + 1)).slice(-2);
+      const dd = ("0" + d.getDate()).slice(-2);
+      return `${yyyy}/${mm}/${dd}`;
+    }
+
+    // Hàm clear form theo chế độ hiện tại
+    function clearForm() {
+      editRecordId = null;
+      if(currentMode === "fixed"){
+        document.getElementById("fixedTicket").value = "";
+        document.getElementById("fixedEvidenceFile").value = "";
+        document.getElementById("fixedEvidenceSheet").value = "";
+        document.getElementById("fixedCommitFE").value = "";
+        document.getElementById("fixedCommitBE").value = "";
+      } else {
+        document.getElementById("qaTicket").value = "";
+        document.getElementById("qaLink").value = "";
+        document.getElementById("qaContent").value = "";
+      }
+    }
+    document.getElementById("clearFixedBtn").addEventListener("click", clearForm);
+    document.getElementById("clearQABtn").addEventListener("click", clearForm);
+
+    // Lưu record theo mode Fixed hoặc QA
+    function saveRecord() {
+      let record = {};
+      const now = new Date();
+      const dateStr = formatDate(now);
+      if(currentMode === "fixed"){
+        const ticket = document.getElementById("fixedTicket").value.trim();
+        if(!ticket) { alert("Mã ticket không được để trống!"); return; }
+        record = {
+          id: editRecordId || Date.now(),
+          type: "fixed",
+          ticket,
+          date: dateStr,
+          evidenceFile: document.getElementById("fixedEvidenceFile").value.trim(),
+          evidenceSheet: document.getElementById("fixedEvidenceSheet").value.trim(),
+          revisionFE: document.getElementById("fixedCommitFE").value.trim(),
+          revisionBE: document.getElementById("fixedCommitBE").value.trim()
+        };
+
+        let output = `${record.date} [SYSEXE_VN]\n`
+                   + `■  原因調査：ロジックが設計書に沿って正しく実装されていない。\n`
+                   + `■  対応方法：設計書に沿って機能を実装致しました。\n`
+                   + `■ エビデンス：\n`
+                   + `   ・ファイル： ${record.evidenceFile}\n`
+                   + `   ・シート： ${record.evidenceSheet}\n`
+                   + `■ ソースコード修正：\n`
+                   + `   ・フロントエンド： ${record.revisionFE ? record.revisionFE : "修正なし"}\n`
+                   + `   ・バックエンド： ${record.revisionBE ? record.revisionBE : "修正なし"}`;
+        showModal(output);
+      } else {
+        const ticket = document.getElementById("qaTicket").value.trim();
+        if(!ticket) { alert("Mã ticket không được để trống!"); return; }
+        const qaContent = document.getElementById("qaContent").value.trim();
+        record = {
+          id: editRecordId || Date.now(),
+          type: "qa",
+          ticket,
+          date: dateStr,
+          link: document.getElementById("qaLink").value.trim(),
+          qaContent: qaContent,
+          qaFilename: `QA_${ticket}_${Date.now()}.txt`
+        };
+
+        let output = `${record.ticket}\n\nEm gửi QA\n\n`
+                   + `Link ticket: ${record.link}\n\n`
+                   + `Nội dung QA: ${record.qaContent}\n\n`
+                   + `(QA được lưu vào file: ${record.qaFilename})`;
+        showModal(output);
       }
 
-      function displayQuestion() {
-        const questionData = shuffledQuestions[currentQuestionIndex];
-
-        questionElement.textContent = `${currentQuestionIndex + 1}. ${
-          questionData.question
-        }`;
-        optionsElement.innerHTML = "";
-
-        questionData.options.forEach((option, index) => {
-          const optionLabel = document.createElement("label");
-          optionLabel.innerHTML = `
-          <input type="radio" name="question" value="${index}">
-          ${option}
-        `;
-          optionsElement.appendChild(optionLabel);
-
-          const radioInput = optionLabel.querySelector(
-            'input[name="question"]'
-          );
-          radioInput.addEventListener("change", () => {
-            checkAnswer(index); // Kiểm tra và tô màu ngay khi chọn
-            chosenAnswers[currentQuestionIndex] = index;
-            updateQuestionNav();
-            disableRadioButtons();
-          });
-        });
-
-        previousButton.disabled = currentQuestionIndex === 0;
-        nextButton.disabled =
-          currentQuestionIndex === shuffledQuestions.length - 1;
-
-        // Chọn lại đáp án và cập nhật màu sắc nếu đã chọn trước đó
-        if (currentQuestionIndex in chosenAnswers) {
-          const selectedIndex = chosenAnswers[currentQuestionIndex];
-          const options = optionsElement.querySelectorAll(
-            'input[name="question"]'
-          );
-          options[selectedIndex].checked = true;
-          checkAnswer(selectedIndex);
-        }
+      const idx = records.findIndex(r => r.id === record.id);
+      if(idx >= 0) {
+        records[idx] = record;
+      } else {
+        records.push(record);
       }
+      saveToStorage();
+      updateTicketList();
+      clearForm();
+    }
+    document.getElementById("saveFixedBtn").addEventListener("click", saveRecord);
+    document.getElementById("saveQABtn").addEventListener("click", saveRecord);
 
-      function displayQuestionNav() {
-        questionNav.innerHTML = "";
-        shuffledQuestions.forEach((_, index) => {
-          const listItem = document.createElement("li");
-          listItem.textContent = index + 1;
-          listItem.addEventListener("click", () => {
-            currentQuestionIndex = index;
-            displayQuestion();
-          });
-          questionNav.appendChild(listItem);
-        });
-        updateQuestionNav();
-      }
-
-      function updateQuestionNav() {
-        const navItems = questionNav.querySelectorAll("li");
-        navItems.forEach((item, index) => {
-          item.classList.remove("active", "correct", "incorrect");
-
-          if (index === currentQuestionIndex) {
-            item.classList.add("active");
-          }
-
-          if (index in chosenAnswers) {
-            if (
-              chosenAnswers[index] ===
-              shuffledQuestions[index].correctAnswerIndex
-            ) {
-              item.classList.add("correct");
-            } else {
-              item.classList.add("incorrect");
+    // Cập nhật danh sách ticket theo ngày đã chọn
+    function updateTicketList() {
+      const selectedDate = formatDate(filterDateElem.value);
+      ticketList.innerHTML = "";
+      const list = records.filter(r => r.date === selectedDate);
+      if(list.length === 0){
+        ticketList.innerHTML = "<p>Không có ticket nào trong ngày này</p>";
+      } else {
+        list.forEach(r => {
+          const div = document.createElement("div");
+          div.className = "ticket-item";
+          div.innerHTML = `<span>GCSAP-${r.ticket} (${r.type})</span>`;
+          div.addEventListener("click", () => loadRecord(r.id));
+          const btnDel = document.createElement("button");
+          btnDel.textContent = "Xóa";
+          btnDel.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if(confirm("Bạn có chắc muốn xóa ticket này?")){
+              deleteRecord(r.id);
             }
-          }
+          });
+          div.appendChild(btnDel);
+          ticketList.appendChild(div);
         });
       }
+    }
+    filterDateElem.addEventListener("change", updateTicketList);
+    updateTicketList();
 
-      function nextQuestion() {
-        if (currentQuestionIndex < shuffledQuestions.length - 1) {
-          currentQuestionIndex++;
-          displayQuestion();
-        }
+    // Load record để chỉnh sửa
+    function loadRecord(id) {
+      const record = records.find(r => r.id === id);
+      if(!record) return;
+      editRecordId = id;
+      if(record.type === "fixed"){
+        switchMode("fixed");
+        document.getElementById("fixedTicket").value = record.ticket;
+        document.getElementById("fixedEvidenceFile").value = record.evidenceFile;
+        document.getElementById("fixedEvidenceSheet").value = record.evidenceSheet;
+        document.getElementById("fixedCommitFE").value = record.revisionFE;
+        document.getElementById("fixedCommitBE").value = record.revisionBE;
+      } else {
+        switchMode("qa");
+        document.getElementById("qaTicket").value = record.ticket;
+        document.getElementById("qaLink").value = record.link;
+        document.getElementById("qaContent").value = record.qaContent;
       }
+    }
 
-      function previousQuestion() {
-        if (currentQuestionIndex > 0) {
-          currentQuestionIndex--;
-          displayQuestion();
-        }
-      }
+    // Xóa record
+    function deleteRecord(id){
+      records = records.filter(r => r.id !== id);
+      saveToStorage();
+      updateTicketList();
+      clearForm();
+    }
 
-      function calculateScore() {
-        let correctCount = 0;
-        for (let i = 0; i < shuffledQuestions.length; i++) {
-          if (
-            i in chosenAnswers &&
-            chosenAnswers[i] === shuffledQuestions[i].correctAnswerIndex
-          ) {
-            correctCount++;
-          }
-        }
-        scoreContainer.textContent = `Điểm của bạn: ${correctCount}/${shuffledQuestions.length}`;
-      }
-
-      function resetQuiz() {
-        currentQuestionIndex = 0;
-        chosenAnswers = {};
-        shuffledQuestions = shuffleArray([...questionsData]);
-        previousButton.disabled = true;
-        nextButton.disabled = false;
-        scoreContainer.textContent = "";
-        displayQuestion();
-        displayQuestionNav();
-      }
-
-      function checkAnswer(selectedIndex) {
-        const correctIndex =
-          shuffledQuestions[currentQuestionIndex].correctAnswerIndex;
-        const options = optionsElement.querySelectorAll("label"); // Chọn tất cả các label
-
-        // Reset màu sắc cho tất cả các đáp án
-        options.forEach((label) => {
-          label.style.color = "black";
-        });
-
-        // Tô màu đáp án đúng/sai
-        options[correctIndex].style.color = "green";
-        if (selectedIndex !== correctIndex) {
-          options[selectedIndex].style.color = "red";
-        }
-      }
-      function disableRadioButtons() {
-        const radioButtons = optionsElement.querySelectorAll(
-          'input[type="radio"]'
-        );
-        radioButtons.forEach((radio) => {
-          radio.disabled = true;
+    // Xuất Report theo ngày
+    document.getElementById("exportReportBtn").addEventListener("click", () => {
+      const selectedDate = formatDate(filterDateElem.value);
+      const fixedItems = records.filter(r => r.date === selectedDate && r.type === "fixed");
+      const qaItems = records.filter(r => r.date === selectedDate && r.type === "qa");
+      
+      let report = `Báo cáo công việc ngày ${selectedDate}\n\n`
+                 + `■ Task đang thực hiện:\n`;
+      if(fixedItems.length > 0){
+        report += `- Fixed:\n`;
+        fixedItems.forEach(r => {
+          report += `   • GCSAP-${r.ticket}\n`;
         });
       }
+      if(qaItems.length > 0){
+        report += `- QA:\n`;
+        qaItems.forEach(r => {
+          report += `   • GCSAP-${r.ticket}\n`;
+        });
+      }
+      report += `\n■ Task tiếp theo sẽ làm:\n- Fix bug CAT\n\n■ Khó khăn:\n`;
+      showModal(report);
+    });
 
-      displayQuestion();
-      displayQuestionNav();
-    </script>
-  </body>
+    // Xuất CSV: nếu hỗ trợ File System Access API thì ghi trực tiếp, nếu không thì download
+    document.getElementById("exportCSVBtn").addEventListener("click", async () => {
+      let csvContent = "Type,Date,Ticket,EvidenceFile,EvidenceSheet,RevisionFE,RevisionBE,Link,QAFilename\n";
+      records.forEach(r => {
+        if(r.type === "fixed"){
+          csvContent += `"${r.type}","${r.date}","${r.ticket}","${r.evidenceFile}","${r.evidenceSheet}","${r.revisionFE ? r.revisionFE : "修正なし"}","${r.revisionBE ? r.revisionBE : "修正なし"}",,""\n`;
+        } else {
+          csvContent += `"${r.type}","${r.date}","${r.ticket}",,,,,"${r.link}","${r.qaFilename}"\n`;
+        }
+      });
+
+      if ("showSaveFilePicker" in window) {
+        try {
+          const opts = {
+            types: [{
+              description: "CSV Files",
+              accept: { "text/csv": [".csv"] },
+            }],
+          };
+          const handle = await window.showSaveFilePicker(opts);
+          const writable = await handle.createWritable();
+          await writable.write(csvContent);
+          await writable.close();
+          alert("Lưu file CSV thành công!");
+        } catch (error) {
+          alert("Lỗi hoặc người dùng hủy lưu file: " + error);
+        }
+      } else {
+        var encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
+        var link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "records.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    });
+  </script>
+</body>
 </html>
